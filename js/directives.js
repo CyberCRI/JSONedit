@@ -38,10 +38,12 @@ app.directive('json', function($compile, $timeout) {
         
         var stringName = "Text";
         var numberName = "Number";
+        var booleanName = "Boolean";
         var objectName = "Object"; 
         var arrayName = "Array";
 
-        scope.valueTypes = [stringName, numberName, objectName, arrayName];
+        scope.valueTypes = [stringName, numberName, booleanName, objectName, arrayName];
+        scope.boolStrings = ["true", "false"];
 
         //////
         // Helper functions
@@ -50,6 +52,7 @@ app.directive('json', function($compile, $timeout) {
         var getType = function(obj) {
             if(obj == null) return "String";
 
+            // TODO: Do this with regular expression capturing
             var type = Object.prototype.toString.call(obj);
             if (type === "[object Object]") {
                 return "Object";
@@ -59,13 +62,12 @@ app.directive('json', function($compile, $timeout) {
                 return "String";
             } else if(type === "[object Number]"){
                 return "Number";
+            } else if(type === "[object Boolean]"){
+                return "Boolean";
             } else {
                 console.error("Can't determine object type");
                 throw new Error("Can't determine object type");
             }
-        };
-        var isNumber = function(n) {
-          return !isNaN(parseFloat(n)) && isFinite(n);
         };
         scope.getType = function(obj) {
             return getType(obj);
@@ -119,6 +121,8 @@ app.directive('json', function($compile, $timeout) {
                                         break;
                         case numberName: obj[scope.keyName] = parseFloat(scope.valueName) || 0;
                                         break;
+                        case booleanName: obj[scope.keyName] = scope.stringToBool(scope.valueName);
+                                        break;
                         case objectName:  obj[scope.keyName] = {};
                                         break;
                         case arrayName:   obj[scope.keyName] = [];
@@ -136,6 +140,8 @@ app.directive('json', function($compile, $timeout) {
                                     break;
                     case numberName: obj.push(parseFloat(scope.valueName) || 0);
                                     break;
+                    case booleanName: obj.push(scope.stringToBool(scope.valueName));
+                                    break;
                     case objectName:  obj.push({});
                                     break;
                     case arrayName:   obj.push([]);
@@ -147,6 +153,12 @@ app.directive('json', function($compile, $timeout) {
                 console.error("object to add to was " + obj);
             }
         };
+        scope.stringToBool = function(str) {
+            return str == "true";
+        }
+        scope.boolToString = function(bool) {
+            return bool ? "true" : "false";
+        }
 
         //////
         // Template Generation
@@ -163,7 +175,7 @@ app.directive('json', function($compile, $timeout) {
                 + '<json ng-switch-when="Array" child="val" type="\'array\'"></json>'
                 + '<span ng-switch-when="String" class="jsonLiteral"><input type="text" ng-model="val" placeholder="Empty" ng-model-onblur ng-change="child[key] = val" class="input-small"></span>'
                 + '<span ng-switch-when="Number" class="jsonLiteral"><input type="number" ng-model="val" placeholder="Empty" ng-model-onblur ng-change="child[key] = parseFloat(val) || 0" class="input-small"></span>'
-                + '<span ng-switch-default>hi</span>'
+                + '<span ng-switch-when="Boolean" class="jsonLiteral"><select ng-model="val" ng-change="child[key] = stringToBool(val)" class="input-small"><option value="true" ng-selected="val">true</option><option value="false" ng-selected="!val">false</option></select></span>'
             + '</span>';
         
         // display either "plus button" or "key-value inputs"
@@ -179,9 +191,12 @@ app.directive('json', function($compile, $timeout) {
                 // value type dropdown
                 '<select ng-model="$parent.valueType" ng-options="option for option in valueTypes"'
                     + 'ng-init="$parent.valueType=\''+stringName+'\'" ui-keydown="{\'enter\':\'addItem(child)\'}"></select>'
-                // input value
-                + '<span ng-show="$parent.valueType == \''+stringName+'\' || $parent.valueType == \''+numberName+'\'"> : <input type="text" placeholder="Value" '
-                    + 'class="input-medium addItemValueInput" ng-model="$parent.valueName" ui-keyup="{\'enter\':\'addItem(child)\'}"/></span> '
+                // string value
+                + '<span ng-show="$parent.valueType == \''+stringName+'\'"> : <input type="text" placeholder="String" class="input-medium addItemValueInput" ng-model="$parent.valueName" ui-keyup="{\'enter\':\'addItem(child)\'}"/></span>'
+                // number value
+                + '<span ng-show="$parent.valueType == \''+numberName+'\'"> : <input type="text" placeholder="Number" class="input-medium addItemValueInput" ng-model="$parent.valueName" ui-keyup="{\'enter\':\'addItem(child)\'}"/></span>'
+                // boolean value
+                + '<span ng-show="$parent.valueType == \''+booleanName+'\'"> : <select ng-model="$parent.valueName" class="input-medium" ui-keyup="{\'enter\':\'addItem(child)\'}"><option value="true">true</option><option value="false">false</option></select></span>'
                 // Add button
                 + '<button class="btn btn-primary" ng-click="addItem(child)">Add</button> '
                 + '<button class="btn" ng-click="$parent.showAddKey=false">Cancel</button>'
